@@ -30,6 +30,7 @@ public class JwtValidationFilter implements GlobalFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        System.out.println("Performing filtering");
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
@@ -44,14 +45,15 @@ public class JwtValidationFilter implements GlobalFilter {
         }
 
         String token = authHeader.substring(7);
-
+        System.out.println(token);
         if (!jwtUtil.validateToken(token)) {
             return onError(exchange, "Invalid or expired JWT token", HttpStatus.UNAUTHORIZED);
         }
 
         String username = jwtUtil.extractUsername(token);
         String roles = jwtUtil.extractRoles(token);
-
+        System.out.println(username);
+        System.out.println(roles);
         ServerHttpRequest mutatedRequest = request.mutate()
                 .header("X-Auth-User-Email", username)
                 .header("X-Auth-User-Roles", roles)
@@ -61,6 +63,7 @@ public class JwtValidationFilter implements GlobalFilter {
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String errorMessage, HttpStatus httpStatus) {
+        System.out.println("Error message: " + errorMessage);
         exchange.getResponse().setStatusCode(httpStatus);
         return exchange.getResponse().setComplete();
     }

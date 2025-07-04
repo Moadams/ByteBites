@@ -8,8 +8,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.util.Date;
+import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 public class JwtUtil {
 
@@ -47,7 +52,14 @@ public class JwtUtil {
 
 
     public String extractRoles(String token) {
-        return extractClaim(token, claims -> claims.get("roles", String.class));
+        final String ROLES_CLAIM_NAME = "roles";
+        List<?> rolesList = extractClaim(token, claims -> claims.get(ROLES_CLAIM_NAME, List.class));
+        if (rolesList == null || rolesList.isEmpty()){
+            return "";
+        }
+        return rolesList.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(","));
     }
 
 
@@ -56,11 +68,21 @@ public class JwtUtil {
         try {
 
             Jwts.parserBuilder().setSigningKey(getSignInKey()).build().parseClaimsJws(token);
+            log.info("JWT token is valid.");
             return true;
         } catch (Exception e) {
 
-            System.err.println("JWT Validation Error: " + e.getMessage());
+            log.error("JWT Validation Error: " + e.getMessage());
             return false;
         }
     }
+
+    private Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
+    }
+
+    private boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
+    }
+
 }
