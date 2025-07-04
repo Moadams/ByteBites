@@ -5,6 +5,7 @@ import com.moadams.restaurantservice.service.RestaurantService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class RestaurantController {
      * Response: CustomApiResponse<RestaurantResponse>
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('RESTAURANT_OWNER', 'ADMIN')")
     public ResponseEntity<CustomApiResponse<RestaurantResponse>> createRestaurant(
             @Valid @RequestBody RestaurantRequest restaurantRequest) {
 
@@ -46,6 +48,7 @@ public class RestaurantController {
      * Response: CustomApiResponse<List<RestaurantResponse>>
      */
     @GetMapping
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'RESTAURANT_OWNER', 'ADMIN')")
     public ResponseEntity<CustomApiResponse<List<RestaurantResponse>>> getAllRestaurants() {
 
         List<RestaurantResponse> restaurants = restaurantService.getAllRestaurants();
@@ -86,6 +89,7 @@ public class RestaurantController {
      * Response: CustomApiResponse<RestaurantResponse>
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'RESTAURANT_OWNER', 'ADMIN')")
     public ResponseEntity<CustomApiResponse<RestaurantResponse>> getRestaurantById(@PathVariable Long id) {
 
         RestaurantResponse restaurant = restaurantService.getRestaurantById(id);
@@ -107,6 +111,7 @@ public class RestaurantController {
      * Response: CustomApiResponse<RestaurantResponse>
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN') or @restaurantSecurity.isOwner(#id)")
     public ResponseEntity<CustomApiResponse<RestaurantResponse>> updateRestaurant(
             @PathVariable Long id,
             @Valid @RequestBody RestaurantRequest restaurantRequest) {
@@ -129,6 +134,7 @@ public class RestaurantController {
      * Response: CustomApiResponse<Void> (or just a message)
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN') or @restaurantSecurity.isOwner(#id)")
     public ResponseEntity<CustomApiResponse<Void>> deleteRestaurant(@PathVariable Long id) {
 
         restaurantService.deleteRestaurant(id);
@@ -150,6 +156,7 @@ public class RestaurantController {
      * Response: CustomApiResponse<MenuItemResponse>
      */
     @PostMapping("/{restaurantId}/menu-items")
+    @PreAuthorize("hasAnyRole('ADMIN') or @restaurantSecurity.isOwner(#restaurantId)")
     public ResponseEntity<CustomApiResponse<MenuItemResponse>> createMenuItem(
             @PathVariable Long restaurantId,
             @Valid @RequestBody MenuItemRequest menuItemRequest) {
@@ -216,6 +223,7 @@ public class RestaurantController {
      * Response: CustomApiResponse<MenuItemResponse>
      */
     @PutMapping("/{restaurantId}/menu-items/{menuItemId}")
+    @PreAuthorize("hasAnyRole('ADMIN') or @restaurantSecurity.isOwner(#restaurantId)")
     public ResponseEntity<CustomApiResponse<MenuItemResponse>> updateMenuItem(
             @PathVariable Long restaurantId,
             @PathVariable Long menuItemId,
@@ -239,6 +247,7 @@ public class RestaurantController {
      * Response: CustomApiResponse<Void>
      */
     @DeleteMapping("/{restaurantId}/menu-items/{menuItemId}")
+    @PreAuthorize("hasAnyRole('ADMIN') or @restaurantSecurity.isOwner(#restaurantId)")
     public ResponseEntity<CustomApiResponse<Void>> deleteMenuItem(
             @PathVariable Long restaurantId,
             @PathVariable Long menuItemId) {
