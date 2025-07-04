@@ -22,6 +22,12 @@ public class OrderController {
         this.orderService = orderService;
     }
 
+    @GetMapping
+    public ResponseEntity getOrders(){
+        return ResponseEntity.ok("orders fetched");
+    }
+
+
     @PostMapping
     public ResponseEntity<CustomApiResponse<OrderResponse>> createOrder(
             @RequestHeader("X-Auth-User-Id") String userId,

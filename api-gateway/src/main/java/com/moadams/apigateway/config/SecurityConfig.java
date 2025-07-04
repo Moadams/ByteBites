@@ -17,6 +17,7 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/auth/**").permitAll()
                         .pathMatchers("/api/restaurants/**").permitAll()
+                        .pathMatchers("/api/orders/**").permitAll()
                         .pathMatchers("/eureka/**").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
                         .anyExchange().authenticated()
