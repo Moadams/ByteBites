@@ -1,22 +1,24 @@
 package com.moadams.orderservice.service;
 
-import com.moadams.orderservice.dto.CustomApiResponse; // Assuming CustomApiResponse is in a shared DTO or copied here
+import com.moadams.orderservice.dto.CustomApiResponse;
 import com.moadams.orderservice.dto.MenuItemServiceResponse;
 import com.moadams.orderservice.dto.OrderItemRequest;
 import com.moadams.orderservice.dto.OrderItemResponse;
 import com.moadams.orderservice.dto.OrderRequest;
 import com.moadams.orderservice.dto.OrderResponse;
 import com.moadams.orderservice.dto.OrderStatusUpdateRequest;
+import com.moadams.orderservice.dto.RestaurantResponse;
 import com.moadams.orderservice.exception.ResourceNotFoundException;
 import com.moadams.orderservice.model.Order;
 import com.moadams.orderservice.model.OrderItem;
 import com.moadams.orderservice.model.enums.OrderStatus;
 import com.moadams.orderservice.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient; // Import WebClient
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,13 +27,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional // Ensures atomicity for operations
+@Transactional
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
-    private final WebClient.Builder webClientBuilder; // For building WebClient instances
+    private final WebClient.Builder webClientBuilder;
 
-    @Value("${restaurant.service.url}") // Inject restaurant service base URL from properties
+    @Value("${restaurant.service.url}")
     private String restaurantServiceUrl;
 
     public OrderServiceImpl(OrderRepository orderRepository, WebClient.Builder webClientBuilder) {
@@ -47,45 +49,48 @@ public class OrderServiceImpl implements OrderService {
         order.setUserEmail(userEmail);
         order.setRestaurantId(orderRequest.restaurantId());
         order.setDeliveryAddress(orderRequest.deliveryAddress());
-        order.setStatus(OrderStatus.PENDING); // Initial status
+        order.setStatus(OrderStatus.PENDING);
         order.setOrderDate(LocalDateTime.now());
         order.setLastUpdated(LocalDateTime.now());
 
         BigDecimal calculatedTotalAmount = BigDecimal.ZERO;
 
-        // Fetch restaurant name (optional, but good for denormalization)
         WebClient restaurantWebClient = webClientBuilder.baseUrl(restaurantServiceUrl).build();
+
         CustomApiResponse<RestaurantResponse> restaurantApiResponse = restaurantWebClient.get()
                 .uri("/api/restaurants/{restaurantId}", orderRequest.restaurantId())
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse ->
                         clientResponse.bodyToMono(String.class).flatMap(errorBody ->
-                                Mono.error(new RuntimeException("Error fetching restaurant: " + errorBody)) // Or a custom exception
+                                Mono.error(new RuntimeException("Error fetching restaurant ID " + orderRequest.restaurantId() + ": " + errorBody))
                         )
                 )
                 .bodyToMono(new ParameterizedTypeReference<CustomApiResponse<RestaurantResponse>>() {})
-                .block() // Blocking call for now, but in a reactive app usually mono.zip or flatmap
-                .data(); // Extract data from CustomApiResponse
+                .block();
 
-        if (restaurantApiResponse == null) {
+        if (restaurantApiResponse == null || restaurantApiResponse.data() == null) {
             throw new ResourceNotFoundException("Restaurant not found with ID: " + orderRequest.restaurantId());
         }
-        order.setRestaurantName(restaurantApiResponse.name()); // Assuming RestaurantResponse has a name() method
+        order.setRestaurantName(restaurantApiResponse.data().name());
 
-        // Process order items - fetch details from restaurant-service
+
         for (OrderItemRequest itemRequest : orderRequest.orderItems()) {
-            MenuItemServiceResponse menuItem = restaurantWebClient.get()
+            CustomApiResponse<MenuItemServiceResponse> menuItemApiResponse = restaurantWebClient.get()
                     .uri("/api/restaurants/{restaurantId}/menu-items/{menuItemId}",
                             orderRequest.restaurantId(), itemRequest.menuItemId())
                     .retrieve()
                     .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse ->
                             clientResponse.bodyToMono(String.class).flatMap(errorBody ->
-                                    Mono.error(new RuntimeException("Error fetching menu item: " + errorBody))
+                                    Mono.error(new RuntimeException("Error fetching menu item ID " + itemRequest.menuItemId() + " for restaurant " + orderRequest.restaurantId() + ": " + errorBody))
                             )
                     )
-                    .bodyToMono(new ParameterizedTypeReference<CustomApiResponse<MenuItemServiceResponse>>() {}) // Assuming restaurant-service wraps in CustomApiResponse
-                    .block() // Blocking call for simplicity for now
-                    .data(); // Extract MenuItemServiceResponse from CustomApiResponse
+                    .bodyToMono(new ParameterizedTypeReference<CustomApiResponse<MenuItemServiceResponse>>() {})
+                    .block();
+
+            MenuItemServiceResponse menuItem = null;
+            if (menuItemApiResponse != null && menuItemApiResponse.data() != null) {
+                menuItem = menuItemApiResponse.data();
+            }
 
             if (menuItem == null) {
                 throw new ResourceNotFoundException("Menu item not found with ID: " + itemRequest.menuItemId() + " in restaurant " + orderRequest.restaurantId());
@@ -95,9 +100,9 @@ public class OrderServiceImpl implements OrderService {
             orderItem.setMenuItemId(menuItem.id());
             orderItem.setMenuItemName(menuItem.name());
             orderItem.setQuantity(itemRequest.quantity());
-            orderItem.setPrice(menuItem.price()); // Use the price from restaurant-service
+            orderItem.setPrice(menuItem.price());
 
-            order.addOrderItem(orderItem); // Adds to list and sets parent order
+            order.addOrderItem(orderItem);
 
             calculatedTotalAmount = calculatedTotalAmount.add(menuItem.price().multiply(BigDecimal.valueOf(itemRequest.quantity())));
         }
@@ -153,7 +158,6 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
-    // --- Helper methods for DTO conversion ---
     private OrderResponse convertToDto(Order order) {
         List<OrderItemResponse> itemResponses = order.getOrderItems().stream()
                 .map(this::convertToDto)
