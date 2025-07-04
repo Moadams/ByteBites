@@ -1,4 +1,4 @@
-package com.moadams.authservice.dto;
+package com.moadams.common.dto;
 
 import java.time.LocalDateTime;
 
