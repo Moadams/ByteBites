@@ -1,8 +1,6 @@
 package com.moadams.restaurantservice.controller;
 
-import com.moadams.restaurantservice.dto.CustomApiResponse;
-import com.moadams.restaurantservice.dto.RestaurantRequest;
-import com.moadams.restaurantservice.dto.RestaurantResponse;
+import com.moadams.restaurantservice.dto.*;
 import com.moadams.restaurantservice.service.RestaurantService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -138,6 +136,118 @@ public class RestaurantController {
         CustomApiResponse<Void> response = new CustomApiResponse<>(
                 true,
                 "Restaurant deleted successfully.",
+                HttpStatus.NO_CONTENT.value(),
+                null
+        );
+        return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
+    }
+
+    /**
+     * Creates a new menu item for a specific restaurant.
+     * Accessible by: ROLE_RESTAURANT_OWNER (must own the restaurant)
+     * Path variable: restaurantId
+     * Request body: MenuItemRequest DTO
+     * Response: CustomApiResponse<MenuItemResponse>
+     */
+    @PostMapping("/{restaurantId}/menu-items")
+    public ResponseEntity<CustomApiResponse<MenuItemResponse>> createMenuItem(
+            @PathVariable Long restaurantId,
+            @Valid @RequestBody MenuItemRequest menuItemRequest) {
+
+        MenuItemResponse createdMenuItem = restaurantService.createMenuItem(restaurantId, menuItemRequest);
+
+        CustomApiResponse<MenuItemResponse> response = new CustomApiResponse<>(
+                true,
+                "Menu item created successfully.",
+                HttpStatus.CREATED.value(),
+                createdMenuItem
+        );
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    /**
+     * Retrieves all menu items for a specific restaurant.
+     * Accessible by: Any authenticated user
+     * Path variable: restaurantId
+     * Response: CustomApiResponse<List<MenuItemResponse>>
+     */
+    @GetMapping("/{restaurantId}/menu-items")
+    public ResponseEntity<CustomApiResponse<List<MenuItemResponse>>> getAllMenuItemsByRestaurant(
+            @PathVariable Long restaurantId) {
+
+        List<MenuItemResponse> menuItems = restaurantService.getAllMenuItemsByRestaurant(restaurantId);
+
+        CustomApiResponse<List<MenuItemResponse>> response = new CustomApiResponse<>(
+                true,
+                "Menu items retrieved successfully for restaurant.",
+                HttpStatus.OK.value(),
+                menuItems
+        );
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    /**
+     * Retrieves a specific menu item by its ID for a specific restaurant.
+     * Accessible by: Any authenticated user
+     * Path variables: restaurantId, menuItemId
+     * Response: CustomApiResponse<MenuItemResponse>
+     */
+    @GetMapping("/{restaurantId}/menu-items/{menuItemId}")
+    public ResponseEntity<CustomApiResponse<MenuItemResponse>> getMenuItemById(
+            @PathVariable Long restaurantId,
+            @PathVariable Long menuItemId) {
+
+        MenuItemResponse menuItem = restaurantService.getMenuItemById(restaurantId, menuItemId);
+
+        CustomApiResponse<MenuItemResponse> response = new CustomApiResponse<>(
+                true,
+                "Menu item retrieved successfully.",
+                HttpStatus.OK.value(),
+                menuItem
+        );
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    /**
+     * Updates an existing menu item for a specific restaurant.
+     * Accessible by: ROLE_RESTAURANT_OWNER (must own the restaurant)
+     * Path variables: restaurantId, menuItemId
+     * Request body: MenuItemRequest DTO
+     * Response: CustomApiResponse<MenuItemResponse>
+     */
+    @PutMapping("/{restaurantId}/menu-items/{menuItemId}")
+    public ResponseEntity<CustomApiResponse<MenuItemResponse>> updateMenuItem(
+            @PathVariable Long restaurantId,
+            @PathVariable Long menuItemId,
+            @Valid @RequestBody MenuItemRequest menuItemRequest) {
+
+        MenuItemResponse updatedMenuItem = restaurantService.updateMenuItem(restaurantId, menuItemId, menuItemRequest);
+
+        CustomApiResponse<MenuItemResponse> response = new CustomApiResponse<>(
+                true,
+                "Menu item updated successfully.",
+                HttpStatus.OK.value(),
+                updatedMenuItem
+        );
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    /**
+     * Deletes a menu item for a specific restaurant.
+     * Accessible by: ROLE_RESTAURANT_OWNER (must own the restaurant)
+     * Path variables: restaurantId, menuItemId
+     * Response: CustomApiResponse<Void>
+     */
+    @DeleteMapping("/{restaurantId}/menu-items/{menuItemId}")
+    public ResponseEntity<CustomApiResponse<Void>> deleteMenuItem(
+            @PathVariable Long restaurantId,
+            @PathVariable Long menuItemId) {
+
+        restaurantService.deleteMenuItem(restaurantId, menuItemId);
+
+        CustomApiResponse<Void> response = new CustomApiResponse<>(
+                true,
+                "Menu item deleted successfully.",
                 HttpStatus.NO_CONTENT.value(),
                 null
         );
