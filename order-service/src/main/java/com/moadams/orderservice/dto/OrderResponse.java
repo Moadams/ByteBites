@@ -8,7 +8,6 @@ import java.util.List;
 
 public record OrderResponse(
         String id,
-        String userId,
         String userEmail,
         String restaurantId,
         String restaurantName,

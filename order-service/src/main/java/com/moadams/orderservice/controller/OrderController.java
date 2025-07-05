@@ -1,9 +1,6 @@
 package com.moadams.orderservice.controller;
 
-import com.moadams.orderservice.dto.CustomApiResponse;
-import com.moadams.orderservice.dto.OrderRequest;
-import com.moadams.orderservice.dto.OrderResponse;
-import com.moadams.orderservice.dto.OrderStatusUpdateRequest;
+import com.moadams.orderservice.dto.*;
 import com.moadams.orderservice.service.OrderService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -29,11 +26,9 @@ public class OrderController {
 
 
     @PostMapping
-    public ResponseEntity<CustomApiResponse<OrderResponse>> createOrder(
-            @RequestHeader("X-Auth-User-Id") String userId,
-            @RequestHeader("X-Auth-User-Email") String userEmail,
+    public ResponseEntity<CustomApiResponse<String>> createOrder(
             @Valid @RequestBody OrderRequest orderRequest) {
-        OrderResponse createdOrder = orderService.createOrder(userId, userEmail, orderRequest);
+        String createdOrder = orderService.createOrder(orderRequest);
         return new ResponseEntity<>(
                 new CustomApiResponse<>(true, "Order created successfully", HttpStatus.CREATED.value(), createdOrder),
                 HttpStatus.CREATED
@@ -41,17 +36,17 @@ public class OrderController {
     }
 
     @GetMapping("/{orderId}")
-    public ResponseEntity<CustomApiResponse<OrderResponse>> getOrderById(@PathVariable String orderId) {
-        OrderResponse order = orderService.getOrderById(orderId);
+    public ResponseEntity<CustomApiResponse<OrderSummaryResponse>> getOrderById(@PathVariable String orderId) {
+        OrderSummaryResponse order = orderService.getOrderById(orderId);
         return new ResponseEntity<>(
                 new CustomApiResponse<>(true, "Order retrieved successfully", HttpStatus.OK.value(), order),
                 HttpStatus.OK
         );
     }
 
-    public ResponseEntity<CustomApiResponse<List<OrderResponse>>> getOrdersByUserId(
-            @PathVariable String userId) {
-        List<OrderResponse> orders = orderService.getOrdersByUserId(userId);
+    public ResponseEntity<CustomApiResponse<List<OrderSummaryResponse>>> getOrdersByUserId(
+            @PathVariable String userEmail) {
+        List<OrderSummaryResponse> orders = orderService.getOrdersByUserEmail(userEmail);
         return new ResponseEntity<>(
                 new CustomApiResponse<>(true, "Orders retrieved successfully", HttpStatus.OK.value(), orders),
                 HttpStatus.OK
@@ -59,9 +54,9 @@ public class OrderController {
     }
 
     @GetMapping("/restaurant/{restaurantId}")
-    public ResponseEntity<CustomApiResponse<List<OrderResponse>>> getOrdersByRestaurantId(
+    public ResponseEntity<CustomApiResponse<List<OrderSummaryResponse>>> getOrdersByRestaurantId(
             @PathVariable String restaurantId) {
-        List<OrderResponse> orders = orderService.getOrdersByRestaurantId(restaurantId);
+        List<OrderSummaryResponse> orders = orderService.getOrdersByRestaurantId(restaurantId);
         return new ResponseEntity<>(
                 new CustomApiResponse<>(true, "Orders retrieved for restaurant successfully", HttpStatus.OK.value(), orders),
                 HttpStatus.OK
@@ -69,10 +64,10 @@ public class OrderController {
     }
 
     @PutMapping("/{orderId}/status")
-    public ResponseEntity<CustomApiResponse<OrderResponse>> updateOrderStatus(
+    public ResponseEntity<CustomApiResponse<OrderSummaryResponse>> updateOrderStatus(
             @PathVariable String orderId,
             @Valid @RequestBody OrderStatusUpdateRequest statusUpdateRequest) {
-        OrderResponse updatedOrder = orderService.updateOrderStatus(orderId, statusUpdateRequest);
+        OrderSummaryResponse updatedOrder = orderService.updateOrderStatus(orderId, statusUpdateRequest);
         return new ResponseEntity<>(
                 new CustomApiResponse<>(true, "Order status updated successfully", HttpStatus.OK.value(), updatedOrder),
                 HttpStatus.OK

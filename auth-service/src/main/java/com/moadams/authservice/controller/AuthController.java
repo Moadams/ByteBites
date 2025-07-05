@@ -37,6 +37,13 @@ public class AuthController {
                 .body(CustomApiResponse.success("User registered successfully with email: " + registeredUser.getEmail()));
     }
 
+    @PostMapping("/register-owner")
+    public ResponseEntity<CustomApiResponse<Void>> registerRestaurantOwner(@Valid @RequestBody UserRegistrationRequest request) {
+        User registeredUser = authService.registerRestaurantOwner(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(CustomApiResponse.success("User registered successfully with email: " + registeredUser.getEmail()));
+    }
+
     /**
      * Handles user login requests.
      * Exceptions (like BadCredentialsException, validation errors) are handled by GlobalExceptionHandler.

@@ -66,6 +66,30 @@ public class AuthService {
         return userRepository.save(newUser);
     }
 
+    @Transactional
+    public User registerRestaurantOwner(UserRegistrationRequest request) {
+
+        if (userRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("User with this email already exists.");
+        }
+
+
+        Role customerRole = roleRepository.findByName(RoleName.ROLE_RESTAURANT_OWNER)
+                .orElseThrow(() -> new IllegalStateException("Default role ROLE_RESTAURANT_OWNER not found. Please pre-populate roles."));
+
+        Set<Role> defaultRoles = new HashSet<>();
+        defaultRoles.add(customerRole);
+
+
+        User newUser = User.builder()
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .roles(defaultRoles)
+                .build();
+
+        return userRepository.save(newUser);
+    }
+
     public AuthResponse loginUser(LoginRequest request) {
         try {
 

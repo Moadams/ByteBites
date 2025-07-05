@@ -1,6 +1,6 @@
 package com.moadams.orderservice.dto;
 
-public record RestaurantResponse(
+public record RestaurantServiceResponse(
         String id,
         String name,
         String address,

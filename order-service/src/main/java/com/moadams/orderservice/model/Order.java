@@ -15,13 +15,11 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-
-    @Column(nullable = false)
-    private String userId;
 
     @Column(nullable = false)
     private String userEmail;

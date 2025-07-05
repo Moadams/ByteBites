@@ -1,17 +1,17 @@
 package com.moadams.orderservice.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "order_items")
-@Data
+@Setter
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

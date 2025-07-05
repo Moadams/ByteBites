@@ -1,20 +1,16 @@
 package com.moadams.orderservice.service;
 
-import com.moadams.orderservice.dto.CustomApiResponse;
-import com.moadams.orderservice.dto.MenuItemServiceResponse;
-import com.moadams.orderservice.dto.OrderItemRequest;
-import com.moadams.orderservice.dto.OrderItemResponse;
-import com.moadams.orderservice.dto.OrderRequest;
-import com.moadams.orderservice.dto.OrderResponse;
-import com.moadams.orderservice.dto.OrderStatusUpdateRequest;
-import com.moadams.orderservice.dto.RestaurantResponse;
+import com.moadams.orderservice.dto.*;
 import com.moadams.orderservice.exception.ResourceNotFoundException;
+import com.moadams.orderservice.exception.UnauthorizedAccessException;
 import com.moadams.orderservice.model.Order;
 import com.moadams.orderservice.model.OrderItem;
 import com.moadams.orderservice.model.enums.OrderStatus;
 import com.moadams.orderservice.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -22,7 +18,9 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -41,31 +39,42 @@ public class OrderServiceImpl implements OrderService {
         this.webClientBuilder = webClientBuilder;
     }
 
-    @Override
-    public OrderResponse createOrder(String userId, String userEmail, OrderRequest orderRequest) {
-        Order order = new Order();
-        order.setId(UUID.randomUUID().toString());
-        order.setUserId(userId);
-        order.setUserEmail(userEmail);
-        order.setRestaurantId(orderRequest.restaurantId());
-        order.setDeliveryAddress(orderRequest.deliveryAddress());
-        order.setStatus(OrderStatus.PENDING);
-        order.setOrderDate(LocalDateTime.now());
-        order.setLastUpdated(LocalDateTime.now());
 
-        BigDecimal calculatedTotalAmount = BigDecimal.ZERO;
+    private String getCurrentUserEmail() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthorizedAccessException("User is not authenticated.");
+        }
+        return (String) authentication.getPrincipal();
+    }
+
+    @Override
+    public String createOrder(OrderRequest orderRequest) {
+        // Validation
+        if (orderRequest.orderItems() == null || orderRequest.orderItems().isEmpty()) {
+            throw new IllegalArgumentException("Order must contain at least one item");
+        }
+
+        Order order = Order.builder()
+                .userEmail(getCurrentUserEmail())
+                .restaurantId(orderRequest.restaurantId())
+                .deliveryAddress(orderRequest.deliveryAddress())
+                .status(OrderStatus.PENDING)
+                .orderDate(LocalDateTime.now())
+                .lastUpdated(LocalDateTime.now())
+                .build();
 
         WebClient restaurantWebClient = webClientBuilder.baseUrl(restaurantServiceUrl).build();
 
-        CustomApiResponse<RestaurantResponse> restaurantApiResponse = restaurantWebClient.get()
+        // Fetch restaurant info
+        CustomApiResponse<RestaurantServiceResponse> restaurantApiResponse = restaurantWebClient.get()
                 .uri("/api/restaurants/{restaurantId}", orderRequest.restaurantId())
                 .retrieve()
-                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse ->
-                        clientResponse.bodyToMono(String.class).flatMap(errorBody ->
-                                Mono.error(new RuntimeException("Error fetching restaurant ID " + orderRequest.restaurantId() + ": " + errorBody))
-                        )
-                )
-                .bodyToMono(new ParameterizedTypeReference<CustomApiResponse<RestaurantResponse>>() {})
+                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                        clientResponse -> clientResponse.bodyToMono(String.class)
+                                .flatMap(errorBody -> Mono.error(new ResourceNotFoundException(
+                                        "Restaurant not found with ID: " + orderRequest.restaurantId()))))
+                .bodyToMono(new ParameterizedTypeReference<CustomApiResponse<RestaurantServiceResponse>>() {})
                 .block();
 
         if (restaurantApiResponse == null || restaurantApiResponse.data() == null) {
@@ -73,67 +82,87 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setRestaurantName(restaurantApiResponse.data().name());
 
+        // Collect all menu item IDs for batch processing
+        List<String> menuItemIds = orderRequest.orderItems().stream()
+                .map(OrderItemRequest::menuItemId)
+                .distinct()
+                .collect(Collectors.toList());
 
-        for (OrderItemRequest itemRequest : orderRequest.orderItems()) {
+        // Create a map to store menu items (in a real implementation, you'd make a batch request)
+        Map<String, MenuItemServiceResponse> menuItemsMap = new HashMap<>();
+
+        // For now, we'll still need individual requests, but we could optimize this with a batch endpoint
+        for (String menuItemId : menuItemIds) {
             CustomApiResponse<MenuItemServiceResponse> menuItemApiResponse = restaurantWebClient.get()
                     .uri("/api/restaurants/{restaurantId}/menu-items/{menuItemId}",
-                            orderRequest.restaurantId(), itemRequest.menuItemId())
+                            orderRequest.restaurantId(), menuItemId)
                     .retrieve()
-                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse ->
-                            clientResponse.bodyToMono(String.class).flatMap(errorBody ->
-                                    Mono.error(new RuntimeException("Error fetching menu item ID " + itemRequest.menuItemId() + " for restaurant " + orderRequest.restaurantId() + ": " + errorBody))
-                            )
-                    )
+                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                            clientResponse -> clientResponse.bodyToMono(String.class)
+                                    .flatMap(errorBody -> Mono.error(new ResourceNotFoundException(
+                                            "Menu item not found with ID: " + menuItemId))))
                     .bodyToMono(new ParameterizedTypeReference<CustomApiResponse<MenuItemServiceResponse>>() {})
                     .block();
 
-            MenuItemServiceResponse menuItem = null;
             if (menuItemApiResponse != null && menuItemApiResponse.data() != null) {
-                menuItem = menuItemApiResponse.data();
+                menuItemsMap.put(menuItemId, menuItemApiResponse.data());
+            }
+        }
+
+        BigDecimal calculatedTotalAmount = BigDecimal.ZERO;
+
+        // Process order items
+        for (OrderItemRequest itemRequest : orderRequest.orderItems()) {
+            if (itemRequest.quantity() <= 0) {
+                throw new IllegalArgumentException("Quantity must be positive for menu item: " + itemRequest.menuItemId());
             }
 
+            MenuItemServiceResponse menuItem = menuItemsMap.get(itemRequest.menuItemId());
             if (menuItem == null) {
-                throw new ResourceNotFoundException("Menu item not found with ID: " + itemRequest.menuItemId() + " in restaurant " + orderRequest.restaurantId());
+                throw new ResourceNotFoundException("Menu item not found with ID: " + itemRequest.menuItemId());
             }
 
-            OrderItem orderItem = new OrderItem();
-            orderItem.setMenuItemId(menuItem.id());
-            orderItem.setMenuItemName(menuItem.name());
-            orderItem.setQuantity(itemRequest.quantity());
-            orderItem.setPrice(menuItem.price());
+            OrderItem orderItem = OrderItem.builder()
+                    .menuItemId(menuItem.id())
+                    .menuItemName(menuItem.name())
+                    .quantity(itemRequest.quantity())
+                    .price(menuItem.price())
+                    .build();
 
             order.addOrderItem(orderItem);
 
-            calculatedTotalAmount = calculatedTotalAmount.add(menuItem.price().multiply(BigDecimal.valueOf(itemRequest.quantity())));
+            calculatedTotalAmount = calculatedTotalAmount.add(
+                    menuItem.price().multiply(BigDecimal.valueOf(itemRequest.quantity()))
+            );
         }
 
         order.setTotalAmount(calculatedTotalAmount);
 
         Order savedOrder = orderRepository.save(order);
-        return convertToDto(savedOrder);
+        return "Order created with ID: " + savedOrder.getId();
     }
 
     @Override
-    public OrderResponse getOrderById(String orderId) {
+    public OrderSummaryResponse getOrderById(String orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
         return convertToDto(order);
     }
 
     @Override
-    public List<OrderResponse> getOrdersByUserId(String userId) {
-        List<Order> orders = orderRepository.findByUserId(userId);
+    public List<OrderSummaryResponse> getOrdersByUserEmail(String userEmail) {
+        List<Order> orders = orderRepository.findByUserEmail(userEmail);
         return orders.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
     @Override
-    public List<OrderResponse> getOrdersByRestaurantId(String restaurantId) {
+    public List<OrderSummaryResponse> getOrdersByRestaurantId(String restaurantId) {
         List<Order> orders = orderRepository.findByRestaurantId(restaurantId);
         return orders.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
     @Override
-    public OrderResponse updateOrderStatus(String orderId, OrderStatusUpdateRequest statusUpdateRequest) {
+    public OrderSummaryResponse updateOrderStatus(String orderId, OrderStatusUpdateRequest statusUpdateRequest) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
 
@@ -158,23 +187,16 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
-    private OrderResponse convertToDto(Order order) {
-        List<OrderItemResponse> itemResponses = order.getOrderItems().stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+    private OrderSummaryResponse convertToDto(Order order) {
 
-        return new OrderResponse(
+        return new OrderSummaryResponse(
                 order.getId(),
-                order.getUserId(),
                 order.getUserEmail(),
-                order.getRestaurantId(),
                 order.getRestaurantName(),
-                itemResponses,
                 order.getTotalAmount(),
                 order.getStatus(),
                 order.getDeliveryAddress(),
-                order.getOrderDate(),
-                order.getLastUpdated()
+                order.getOrderDate()
         );
     }
 
