@@ -16,7 +16,7 @@ Follow these steps to get the entire ByteBites platform up and running on your l
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/Moadams/ByteBites
 cd ByteBites-Platform
 ```
 
