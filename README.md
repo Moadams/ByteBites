@@ -20,6 +20,12 @@ git clone https://github.com/Moadams/ByteBites
 cd ByteBites-Platform
 ```
 
+For the configuration files
+```bash
+git clone https://github.com/Moadams/ByteBitesConfig
+```
+
+
 ### 2. Start Kafka and Zookeeper (using Docker Compose)
 
 Navigate to the root of your project where your docker-compose.yml file is located (assuming it contains Kafka and Zookeeper services).
