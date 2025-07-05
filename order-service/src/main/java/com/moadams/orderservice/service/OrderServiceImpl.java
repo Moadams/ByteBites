@@ -155,7 +155,7 @@ public class OrderServiceImpl implements OrderService {
 
         OrderPlacedEvent event = new OrderPlacedEvent(
                 savedOrder.getId(),
-                savedOrder.getUserEmail(), // Use userEmail from the saved order
+                savedOrder.getUserEmail(),
                 savedOrder.getRestaurantId(),
                 savedOrder.getRestaurantName(),
                 savedOrder.getTotalAmount(),
