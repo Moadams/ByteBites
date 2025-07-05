@@ -1,4 +1,4 @@
-package com.moadams.orderservice.model.enums; // Updated package
+package com.moadams.orderservice.model.enums;
 
 public enum OrderStatus {
     PENDING,

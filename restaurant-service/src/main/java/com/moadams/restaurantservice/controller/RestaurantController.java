@@ -89,7 +89,6 @@ public class RestaurantController {
      * Response: CustomApiResponse<RestaurantResponse>
      */
     @GetMapping("/{id}")
-//    @PreAuthorize("hasAnyRole('CUSTOMER', 'RESTAURANT_OWNER', 'ADMIN')")
     public ResponseEntity<CustomApiResponse<RestaurantResponse>> getRestaurantById(@PathVariable Long id) {
 
         RestaurantResponse restaurant = restaurantService.getRestaurantById(id);

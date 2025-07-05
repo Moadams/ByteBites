@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
-@RestControllerAdvice // Makes this a global exception handler for REST controllers
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
@@ -22,7 +22,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<CustomApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT) // 409 Conflict
+        return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(CustomApiResponse.error(ex.getMessage()));
     }
 
@@ -34,8 +34,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<CustomApiResponse<Void>> handleBadCredentialsException(BadCredentialsException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED) // 401 Unauthorized
-                .body(CustomApiResponse.error("Invalid email or password.")); // Generic message for security reasons
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(CustomApiResponse.error("Invalid email or password."));
     }
 
     /**
@@ -51,8 +51,7 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 errors.put(error.getField(), error.getDefaultMessage()));
 
-        // Return the errors map in the data field of CustomApiResponse
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST) // 400 Bad Request
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(CustomApiResponse.error("Validation failed", errors));
     }
 
@@ -65,9 +64,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<CustomApiResponse<Void>> handleGenericException(Exception ex) {
-        // Log the exception for debugging purposes, but return a generic message to client
-        ex.printStackTrace(); // Consider using a logger instead
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR) // 500 Internal Server Error
+        ex.printStackTrace();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(CustomApiResponse.error("An unexpected error occurred. Please try again later."));
     }
 }

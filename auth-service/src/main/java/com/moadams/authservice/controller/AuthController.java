@@ -1,8 +1,8 @@
 package com.moadams.authservice.controller;
 
-import com.moadams.authservice.dto.AuthResponse; // Your JwtResponse structure
+import com.moadams.authservice.dto.AuthResponse;
 import com.moadams.authservice.dto.CustomApiResponse;
-import com.moadams.authservice.dto.LoginRequest; // Using LoginRequest as discussed
+import com.moadams.authservice.dto.LoginRequest;
 import com.moadams.authservice.dto.UserRegistrationRequest;
 import com.moadams.authservice.model.User;
 import com.moadams.authservice.service.AuthService;

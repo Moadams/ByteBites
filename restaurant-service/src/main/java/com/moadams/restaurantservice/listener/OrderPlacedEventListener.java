@@ -12,10 +12,6 @@ public class OrderPlacedEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(OrderPlacedEventListener.class);
 
-    // This listener would typically interact with a service layer
-    // to update the order status within the restaurant's internal system
-    // For example: restaurantService.startOrderPreparation(event.orderId(), event.restaurantId());
-
     @KafkaListener(topics = "order-events-topic", groupId = "${spring.kafka.consumer.group-id}")
     public void listenOrderPlacedEvent(OrderPlacedEvent event) {
         log.info("Restaurant Service received OrderPlacedEvent for Order ID: {}", event.orderId());
@@ -27,11 +23,5 @@ public class OrderPlacedEventListener {
             log.info("  - Preparing: {} (x{})", item.menuItemName(), item.quantity());
         }
         log.info("--- Order preparation started for Order #{} ---", event.orderId());
-
-        // In a real application, you would:
-        // 1. Validate if this order is for *this* restaurant instance (if multiple restaurant services)
-        //    (The event contains restaurantId, so you'd check it against the current service's restaurant ID)
-        // 2. Update the order's status in the restaurant's internal database (e.g., to 'PREPARING')
-        // 3. Potentially publish another event (e.g., OrderPreparationStartedEvent)
     }
 }

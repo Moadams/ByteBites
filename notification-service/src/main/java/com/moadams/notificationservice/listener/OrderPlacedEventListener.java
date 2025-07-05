@@ -37,7 +37,7 @@ public class OrderPlacedEventListener {
                         "We will notify you when your order is out for delivery.\n" +
                         "Thank you for choosing ByteBites!\n\n" +
                         "Your Order Items:\n%s",
-                event.userEmail(), // Or retrieve user's name if available
+                event.userEmail(),
                 event.restaurantName(),
                 event.orderId(),
                 event.totalAmount(),
@@ -50,8 +50,6 @@ public class OrderPlacedEventListener {
         log.info("Body:\n{}", body);
         log.info("--- End Notification ---");
 
-        // Example: Call a notification service client here
-        // notificationServiceClient.sendEmail(event.userEmail(), subject, body);
     }
 
     private String formatOrderItems(List<OrderItemDetails> items) {
