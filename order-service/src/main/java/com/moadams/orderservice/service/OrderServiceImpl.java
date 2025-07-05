@@ -1,12 +1,15 @@
 package com.moadams.orderservice.service;
 
 import com.moadams.orderservice.dto.*;
+import com.moadams.orderservice.event.OrderItemDetails;
+import com.moadams.orderservice.event.OrderPlacedEvent;
 import com.moadams.orderservice.exception.ResourceNotFoundException;
 import com.moadams.orderservice.exception.UnauthorizedAccessException;
 import com.moadams.orderservice.model.Order;
 import com.moadams.orderservice.model.OrderItem;
 import com.moadams.orderservice.model.enums.OrderStatus;
 import com.moadams.orderservice.repository.OrderRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.security.core.Authentication;
@@ -21,23 +24,23 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.kafka.core.KafkaTemplate;
+
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
     @Value("${restaurant.service.url}")
     private String restaurantServiceUrl;
 
-    public OrderServiceImpl(OrderRepository orderRepository, WebClient.Builder webClientBuilder) {
-        this.orderRepository = orderRepository;
-        this.webClientBuilder = webClientBuilder;
-    }
 
 
     private String getCurrentUserEmail() {
@@ -139,6 +142,32 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(calculatedTotalAmount);
 
         Order savedOrder = orderRepository.save(order);
+
+
+        List<OrderItemDetails> itemDetails = savedOrder.getOrderItems().stream()
+                .map(item -> new OrderItemDetails(
+                        item.getMenuItemId(),
+                        item.getMenuItemName(),
+                        item.getQuantity(),
+                        item.getPrice()
+                ))
+                .collect(Collectors.toList());
+
+        OrderPlacedEvent event = new OrderPlacedEvent(
+                savedOrder.getId(),
+                savedOrder.getUserEmail(), // Use userEmail from the saved order
+                savedOrder.getRestaurantId(),
+                savedOrder.getRestaurantName(),
+                savedOrder.getTotalAmount(),
+                savedOrder.getDeliveryAddress(),
+                savedOrder.getOrderDate(),
+                itemDetails
+        );
+
+        // Topic name for the event. Make sure this topic exists in Kafka.
+        // You might want to define this in application.properties as well: e.g., order.topic.name=order-events
+        kafkaTemplate.send("order-events-topic", event.orderId(), event);
+
         return "Order created with ID: " + savedOrder.getId();
     }
 
