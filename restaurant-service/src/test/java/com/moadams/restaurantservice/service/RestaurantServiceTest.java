@@ -244,7 +244,6 @@ class RestaurantServiceTest {
 
     @Test
     void createMenuItem_UnauthorizedUser_ThrowsException() {
-        // Arrange
         MenuItemRequest request = new MenuItemRequest("Chrisbreezy Pizza", "Classic tomato and mozzarella",
                 BigDecimal.valueOf(15.99), true);
         Restaurant restaurant = createTestRestaurant(1L, OTHER_USER_EMAIL);
@@ -254,7 +253,6 @@ class RestaurantServiceTest {
             setupAuthenticatedUser(TEST_USER_EMAIL);
             when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant));
 
-            // Act & Assert
             assertThrows(UnauthorizedAccessException.class, () ->
                     restaurantService.createMenuItem(1L, request));
             verify(menuItemRepository, never()).save(any(MenuItem.class));
@@ -263,7 +261,6 @@ class RestaurantServiceTest {
 
     @Test
     void getAllMenuItemsByRestaurant_Success() {
-        // Arrange
         Restaurant restaurant = createTestRestaurant(1L, TEST_USER_EMAIL);
         List<MenuItem> menuItems = Arrays.asList(
                 createTestMenuItem(1L, restaurant),
@@ -273,10 +270,8 @@ class RestaurantServiceTest {
         when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant));
         when(menuItemRepository.findByRestaurantId(1L)).thenReturn(menuItems);
 
-        // Act
         List<MenuItemResponse> responses = restaurantService.getAllMenuItemsByRestaurant(1L);
 
-        // Assert
         assertNotNull(responses);
         assertEquals(2, responses.size());
         verify(menuItemRepository).findByRestaurantId(1L);
@@ -284,17 +279,14 @@ class RestaurantServiceTest {
 
     @Test
     void getMenuItemById_Success() {
-        // Arrange
         Restaurant restaurant = createTestRestaurant(1L, TEST_USER_EMAIL);
         MenuItem menuItem = createTestMenuItem(1L, restaurant);
 
         when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant));
         when(menuItemRepository.findById(1L)).thenReturn(Optional.of(menuItem));
 
-        // Act
         MenuItemResponse response = restaurantService.getMenuItemById(1L, 1L);
 
-        // Assert
         assertNotNull(response);
         assertEquals(1L, response.id());
         assertEquals("Chrisbreezy Pizza", response.name());
@@ -303,7 +295,6 @@ class RestaurantServiceTest {
 
     @Test
     void getMenuItemById_MenuItemNotInRestaurant_ThrowsException() {
-        // Arrange
         Restaurant restaurant1 = createTestRestaurant(1L, TEST_USER_EMAIL);
         Restaurant restaurant2 = createTestRestaurant(2L, OTHER_USER_EMAIL);
         MenuItem menuItem = createTestMenuItem(1L, restaurant2);
@@ -311,14 +302,12 @@ class RestaurantServiceTest {
         when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant1));
         when(menuItemRepository.findById(1L)).thenReturn(Optional.of(menuItem));
 
-        // Act & Assert
         assertThrows(ResourceNotFoundException.class, () ->
                 restaurantService.getMenuItemById(1L, 1L));
     }
 
     @Test
     void updateMenuItem_Success() {
-        // Arrange
         MenuItemRequest request = new MenuItemRequest("Updated Pizza", "Updated description",
                 BigDecimal.valueOf(18.99), false);
         Restaurant restaurant = createTestRestaurant(1L, TEST_USER_EMAIL);
@@ -336,10 +325,8 @@ class RestaurantServiceTest {
             when(menuItemRepository.findById(1L)).thenReturn(Optional.of(existingMenuItem));
             when(menuItemRepository.save(any(MenuItem.class))).thenReturn(updatedMenuItem);
 
-            // Act
             MenuItemResponse response = restaurantService.updateMenuItem(1L, 1L, request);
 
-            // Assert
             assertNotNull(response);
             assertEquals("Updated Pizza", response.name());
             assertEquals("Updated description", response.description());
@@ -351,7 +338,6 @@ class RestaurantServiceTest {
 
     @Test
     void updateMenuItem_MenuItemNotInRestaurant_ThrowsException() {
-        // Arrange
         MenuItemRequest request = new MenuItemRequest("Updated Pizza", "Updated description",
                 BigDecimal.valueOf(18.99), false);
         Restaurant restaurant1 = createTestRestaurant(1L, TEST_USER_EMAIL);
@@ -364,7 +350,6 @@ class RestaurantServiceTest {
             when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant1));
             when(menuItemRepository.findById(1L)).thenReturn(Optional.of(menuItem));
 
-            // Act & Assert
             assertThrows(UnauthorizedAccessException.class, () ->
                     restaurantService.updateMenuItem(1L, 1L, request));
             verify(menuItemRepository, never()).save(any(MenuItem.class));
@@ -373,7 +358,6 @@ class RestaurantServiceTest {
 
     @Test
     void deleteMenuItem_Success() {
-        // Arrange
         Restaurant restaurant = createTestRestaurant(1L, TEST_USER_EMAIL);
         MenuItem menuItem = createTestMenuItem(1L, restaurant);
 
@@ -383,26 +367,21 @@ class RestaurantServiceTest {
             when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant));
             when(menuItemRepository.findById(1L)).thenReturn(Optional.of(menuItem));
 
-            // Act
             restaurantService.deleteMenuItem(1L, 1L);
 
-            // Assert
             verify(menuItemRepository).delete(menuItem);
         }
     }
 
     @Test
     void deleteMenuItem_UnauthorizedUser_ThrowsException() {
-        // Arrange
         Restaurant restaurant = createTestRestaurant(1L, OTHER_USER_EMAIL);
 
         try (MockedStatic<SecurityContextHolder> mockedStatic = mockStatic(SecurityContextHolder.class)) {
             mockedStatic.when(SecurityContextHolder::getContext).thenReturn(securityContext);
             setupAuthenticatedUser(TEST_USER_EMAIL);
             when(restaurantRepository.findById(1L)).thenReturn(Optional.of(restaurant));
-            // Don't stub menuItemRepository.findById() since the exception is thrown before it's called
 
-            // Act & Assert
             assertThrows(UnauthorizedAccessException.class, () ->
                     restaurantService.deleteMenuItem(1L, 1L));
             verify(menuItemRepository, never()).delete(any(MenuItem.class));
